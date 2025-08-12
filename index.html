@@ -12,158 +12,104 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      html, body { height: 100%; }
+      /* Basic swipe hint for Story Mode */
+      .swipe-hint { animation: bounceX 1.4s ease-in-out infinite; }
+      @keyframes bounceX { 0%,100% { transform: translateX(0) } 50% { transform: translateX(6px) } }
+    </style>
   </head>
   <body class="antialiased">
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useMemo, useState, useEffect } = React;
+      const { useMemo, useState, useEffect, useRef } = React;
 
+      /********************
+       * CORE APP
+       ********************/
       function App() {
         const [view, setView] = useState({ type: "home", storyId: null });
-        const [prefs, setPrefs] = useState({
-          interests: { flamengo: true, famosos: true, cidade: true, cidadania: true, policial: false, educacao: false, musicaPop: true },
-          neighborhood: "Rio de Janeiro, RJ",
-        });
+        const [prefs, setPrefs] = useState(() => loadPrefs());
         const [showPrefs, setShowPrefs] = useState(false);
         const [lastUpdated, setLastUpdated] = useState(formatNow());
+        const [mode, setMode] = useState(() => localStorage.getItem("nexus-mode") || "quick"); // quick | deep
+        const [storyModeOpen, setStoryModeOpen] = useState(false);
+        const [toast, setToast] = useState(null);
         const profileImage = "https://i1.sndcdn.com/artworks-ONPeYpMsHzOkQc36-jhNovQ-t500x500.jpg";
+
+        // Streaks (daily habit)
+        const [streak, setStreak] = useState(() => initStreak());
 
         useEffect(() => {
           const i = setInterval(() => setLastUpdated(formatNow()), 60000);
           return () => clearInterval(i);
         }, []);
 
-        const DATA = useMemo(() => {
-          const today = new Date();
-          const fmt = (d) => d.toISOString().slice(0, 10);
-          const flamengo = [
-            {
-              id: "fla-1",
-              category: "Flamengo",
-              title: "Copa do Brasil: Flamengo cai nos pênaltis para o Atlético-MG no Maracanã",
-              sub: "Mengão eliminado em disputa dramática; Everson decide a série nos penais.",
-              image: "https://lncimg.lance.com.br/cdn-cgi/image/width=950,quality=75,fit=pad,format=webp/uploads/2025/08/Hulk-em-Atletico-MG-x-Flamengo-aspect-ratio-512-320.jpg",
-              date: fmt(new Date()),
-              source: "NEXUS Esportes",
-              content: `<p>Após empate no agregado, o Flamengo foi eliminado pelo Atlético-MG nos pênaltis no Maracanã. O resultado redireciona o foco para Brasileirão e Libertadores.</p>`,
-              tags: ["flamengo", "maracanã", "rio de janeiro", "sudeste", "futebol"],
-            },
-            {
-              id: "fla-2",
-              category: "Flamengo",
-              title: "Próximo desafio: Mirassol no Brasileirão — teste para reagir",
-              sub: "Partida do fim de semana é vista como chave para retomar confiança.",
-              image: "https://gazetadourubu.com/storage/media-items/images/2025/08/flamengo-x-mirassol_20250808081334.webp",
-              date: fmt(new Date(today.getTime() - 86400000)),
-              source: "NEXUS Esportes",
-              content: `<p>O confronto surge como chance imediata de virar a página. A Nação deve lotar o Maraca.</p>`,
-              tags: ["flamengo", "brasileirão", "maracanã", "rio de janeiro", "futebol"],
-            },
-            {
-              id: "fla-3",
-              category: "Futebol Europeu",
-              title: "Estêvão marca em sua estreia pelo Chelsea; veja o gol",
-              sub: "Ex-palmeirense pegou rebote de Cole Palmer e empurrou para o gol do Bayer Leverkusen",
-              image: "https://s2-home-globo.glbimg.com/fJyplVoMQo5xTAet08NydtI-cdk=/419x131:4182x2247/fit-in/1030x580/middle/smart/filters:strip_icc():strip_exif()/i.s3.glbimg.com/v1/AUTH_bc8228b6673f488aa253bbcb03c80ec5/internal_photos/bs/2025/Z/m/5tale8QYW2Y2QKmYYFmg/2025-08-08t182020z-1227866563-up1el881exu9m-rtrmadp-3-soccer-friendly-che-lev.jpg",
-              date: fmt(new Date(today.getTime() - 86400000)),
-              source: "NEXUS Esportes",
-              content: `<p>Estêvão estreou da melhor maneira possível com a camisa do Chelsea. Nesta sexta-feira, em amistoso realizado em Stamford Bridge, ele abriu o placar no duelo com o Bayer Leverkusen. O sportv transmite a partida ao vivo.</p>`,
-              tags: ["flamengo", "brasileirão", "maracanã", "rio de janeiro", "futebol"],
-            },
-          ];
-          const celebs = [
-            {
-              id: "pop-1",
-              category: "Famosos & Pop",
-              title: "Anitta lança parceria surpresa e domina os charts",
-              sub: "Clipe com estética futurista e neon trenda nas redes.",
-              image: "https://caras.com.br/media/_versions/2025/06/anitta_0ah3r677_widelg.jpg",
-              date: fmt(new Date(today.getTime() - 86400000)),
-              source: "NEXUS Entretenimento",
-              content: `<p>Single surpresa com visual high-tech e refrão pegajoso. Milhões de views em horas.</p>`,
-              tags: ["anitta", "pop", "brasil", "entretenimento", "musica"],
-            },
-            {
-              id: "pop-2",
-              category: "Famosos & Pop",
-              title: "Neymar volta aos holofotes com evento beneficente",
-              sub: "Artistas e atletas se reúnem; renda para projetos infantis.",
-              image: "https://lncimg.lance.com.br/cdn-cgi/image/width=950,quality=75,fit=pad,format=webp/uploads/2025/08/AGIF2508042020159-1-scaled-aspect-ratio-512-320.jpg",
-              date: fmt(new Date(today.getTime() - 2 * 86400000)),
-              source: "NEXUS Entretenimento",
-              content: `<p>Evento marca presença massiva de celebridades e reacende debate sobre Seleção.</p>`,
-              tags: ["neymar", "celebridades", "beneficente", "brasil", "futebol"],
-            },
-          ];
-          const rioVida = [
-            {
-              id: "rio-1",
-              category: "Rio em Alta",
-              title: "Festival ocupa a Marina da Glória com arte, gastronomia e beats",
-              sub: "Line-up mescla funk, pop e eletrônica; experiências imersivas instagramáveis.",
-              image: "https://vejario.abril.com.br/wp-content/uploads/2023/04/QUEREMOS22_@bleia_drone_12.jpg?quality=70&strip=info&resize=1080,565&crop=1",
-              date: fmt(new Date()),
-              source: "NEXUS Cultura",
-              content: `<p>Curadoria mistura sons do Rio com tendências globais e ativações para famílias.</p>`,
-              tags: ["rio de janeiro", "marina da glória", "glória", "zona sul", "festival"],
-            },
-            {
-              id: "rio-2",
-              category: "Rio em Alta",
-              title: "Trilhas reabertas no Parque Nacional da Tijuca com nova sinalização",
-              sub: "Segurança reforçada e vistas clássicas — ótima pedida pro fim de semana.",
-              image: "https://www.gov.br/icmbio/pt-br/centrais-de-conteudo/nova-sinalizao-divulgao-jpg",
-              date: fmt(new Date(today.getTime() - 86400000)),
-              source: "NEXUS Cidade",
-              content: `<p>Totens informativos, pontos de descanso e acesso gratuito nas trilhas mais procuradas.</p>`,
-              tags: ["tijuca", "zona norte", "parque nacional", "rio de janeiro", "trilha"],
-            },
-          ];
-          const civico = [
-            {
-              id: "civ-1",
-              category: "Cidadania & Economia",
-              title: "Programas sociais ampliam atendimento a famílias no estado do Rio",
-              sub: "Inscrições abertas para benefícios e capacitações; veja quem tem direito.",
-              image: "https://rondonia.ro.gov.br/wp-content/uploads/2022/06/rondonia-cidada-cidade-do-lobo-thaissa-brandao-2-870x580.jpeg",
-              date: fmt(new Date()),
-              source: "NEXUS Serviço",
-              content: `<p>Novas vagas em cursos de qualificação e ampliação de benefício social. Procure o CRAS do bairro.</p>`,
-              tags: ["assistência social", "rio de janeiro", "serviço", "cidadania"],
-            },
-          ];
-          return { flamengo, celebs, rioVida, civico };
+        // Persist mode & prefs
+        useEffect(() => { localStorage.setItem("nexus-mode", mode); }, [mode]);
+        useEffect(() => { savePrefs(prefs); }, [prefs]);
+
+        // Demo: real-time push (goal/flash update)
+        useEffect(() => {
+          const t = setTimeout(() => {
+            setBreaking((prev) => [{
+              id: `brk-${Date.now()}`,
+              category: "Ao Vivo",
+              title: "GOL do Flamengo! 1–0 no Maracanã",
+              sub: "Atualização em tempo real: vídeo curto + estatísticas.",
+              image: "https://images.pexels.com/photos/399187/pexels-photo-399187.jpeg",
+              date: isoToday(),
+              source: "NEXUS Ao Vivo",
+              content: `<p>Gol do Mengão aos 23'! Veja o clipe e os xG do jogo. Acompanhe o lance a lance no modo rápido ou aprofunde em 'Deep Mode'.</p>`,
+              tags: ["flamengo","futebol","maracanã","rio de janeiro"]
+            }, ...prev]);
+            setToast({ type: "goal", text: "GOL do Flamengo! Toque para ver" });
+          }, 4500);
+          return () => clearTimeout(t);
         }, []);
 
+        const DATA = useMemo(() => seedData(), []);
+        const [breaking, setBreaking] = useState([]); // live inserts
+
         const [query, setQuery] = useState("");
-        const [location, setLocation] = useState("Rio de Janeiro, RJ");
+        const [location, setLocation] = useState(prefs.neighborhood || "Rio de Janeiro, RJ");
         const [searching, setSearching] = useState(false);
         const [searchEcho, setSearchEcho] = useState(null);
 
-        const allItems = useMemo(() => [...DATA.flamengo, ...DATA.celebs, ...DATA.rioVida, ...DATA.civico], [DATA]);
-        const items = allItems
+        const allItems = useMemo(() => [...breaking, ...DATA.flamengo, ...DATA.celebs, ...DATA.rioVida, ...DATA.civico], [DATA, breaking]);
+        const items = useMemo(() => allItems
           .filter((it) => filterByQuery(it, query) && filterByLocation(it, location))
-          .filter((it) => filterByPrefs(it, prefs));
+          .filter((it) => filterByPrefs(it, prefs))
+        , [allItems, query, location, prefs]);
+
         const story = items.find((i) => i.id === view.storyId);
 
         function handleSearch(q, loc) {
           setQuery(q);
           setLocation(loc);
           setSearching(true);
-          setSearchEcho(`${q ? ` + '“${q}”' + ` : "tudo"} em ${loc}`);
-          if (typeof window !== "undefined" && window.nexusSearch) {
-            window.nexusSearch({ query: q, location: loc });
+          setSearchEcho(`${q ? ` + '"${q}"' + ` : "tudo"} em ${loc}`);
+          if (typeof window !== "undefined") {
+            window.nexusSearch?.({ query: q, location: loc });
           }
-          setTimeout(() => setSearching(false), 1200);
+          setTimeout(() => setSearching(false), 900);
         }
 
         const recommendations = useMemo(() => getRecommendations(allItems, prefs, location, 6), [allItems, prefs, location]);
-        const featured = useMemo(() => [DATA.flamengo[0], DATA.celebs[0], DATA.rioVida[0]].filter(Boolean), [DATA]);
+        const featured = useMemo(() => [items[0], items[1], items[2]].filter(Boolean), [items]);
+
+        function openStoryMode(fromCategory = null) {
+          setStoryModeOpen(true);
+        }
+
+        function closeStoryMode() { setStoryModeOpen(false); }
 
         return (
           <div className="min-h-screen bg-gradient-to-b from-white via-amber-50/60 to-white text-neutral-900 relative">
             <BackgroundFX />
+
+            {/* Header */}
             <header className="sticky top-0 z-40 backdrop-blur bg-white/70 border-b border-neutral-200">
               <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -175,15 +121,11 @@
                     <div className="text-[11px] text-neutral-500">Atualizado: <span title={new Date().toISOString()}>{lastUpdated}</span></div>
                   </div>
                 </div>
-                <nav className="hidden md:flex gap-6 text-sm text-neutral-600">
-                  <a className="hover:text-neutral-900" href="#fla">Flamengo</a>
-                  <a className="hover:text-neutral-900" href="#pop">Famosos</a>
-                  <a className="hover:text-neutral-900" href="#rio">Rio</a>
-                  <a className="hover:text-neutral-900" href="#civ">Serviço</a>
-                  <a className="hover:text-neutral-900" href="#recs">Notícias que você pode gostar</a>
-                </nav>
-                <div className="hidden sm:flex items-center gap-3 text-xs text-neutral-600">
-                  <span className="px-2 py-1 rounded-full bg-neutral-100 border border-neutral-200">{location}</span>
+
+                {/* Mode switch + streak */}
+                <div className="hidden md:flex items-center gap-4">
+                  <ModeSwitch mode={mode} setMode={setMode} />
+                  <StreakPill streak={streak} />
                   <button
                     onClick={() => setShowPrefs(true)}
                     aria-label="Abrir perfil e preferências"
@@ -200,7 +142,9 @@
                 <Hero
                   featured={featured}
                   onExplore={() => document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" })}
+                  onStoryMode={openStoryMode}
                 />
+
                 <div className="max-w-7xl mx-auto px-4 -mt-4">
                   <Toolbar
                     onSearch={(q) => handleSearch(q, location)}
@@ -211,6 +155,10 @@
                   />
                 </div>
 
+                {toast && (
+                  <Toast text={toast.text} onClose={() => setToast(null)} onClick={() => { setToast(null); openStoryMode(); }} />
+                )}
+
                 {searching && (
                   <div className="max-w-7xl mx-auto px-4 mt-4">
                     <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700">
@@ -220,14 +168,26 @@
                 )}
 
                 <section id="feed" className="max-w-7xl mx-auto px-4 py-10">
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <h2 className="text-lg font-semibold text-neutral-700">Feed {mode === 'quick' ? 'rápido' : 'aprofundado'}</h2>
+                    <button onClick={openStoryMode} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-300 hover:border-neutral-500">Abrir Story Mode</button>
+                  </div>
+
+                  {/* LIVE MIX (personalized blend) */}
+                  <LiveMix items={items} onOpen={(id) => setView({ type: "story", storyId: id })} mode={mode} />
+
                   <Section id="fla" label="Flamengo Agora" />
-                  <CardGrid items={DATA.flamengo.filter((it) => filterByLocation(it, location)).filter((it)=>filterByPrefs(it,prefs))} onOpen={(id) => setView({ type: "story", storyId: id })} />
+                  <CardGrid items={items.filter(i=> i.tags?.includes("flamengo")).slice(0,6)} onOpen={(id) => setView({ type: "story", storyId: id })} />
+
                   <Section id="pop" label="Famosos & Pop" />
-                  <CardGrid items={DATA.celebs.filter((it) => filterByLocation(it, location)).filter((it)=>filterByPrefs(it,prefs))} onOpen={(id) => setView({ type: "story", storyId: id })} />
+                  <CardGrid items={items.filter(i=> i.tags?.includes("celebridades") || i.tags?.includes("anitta") || i.tags?.includes("neymar")).slice(0,6)} onOpen={(id) => setView({ type: "story", storyId: id })} />
+
                   <Section id="rio" label="Rio em Alta" />
-                  <CardGrid items={DATA.rioVida.filter((it) => filterByLocation(it, location)).filter((it)=>filterByPrefs(it,prefs))} onOpen={(id) => setView({ type: "story", storyId: id })} />
+                  <CardGrid items={items.filter(i=> i.tags?.includes("rio de janeiro") && !i.tags?.includes("flamengo")).slice(0,6)} onOpen={(id) => setView({ type: "story", storyId: id })} />
+
                   <Section id="civ" label="Cidadania & Economia" />
-                  <CardGrid items={DATA.civico.filter((it) => filterByLocation(it, location)).filter((it)=>filterByPrefs(it,prefs))} onOpen={(id) => setView({ type: "story", storyId: id })} />
+                  <CardGrid items={items.filter(i=> i.tags?.includes("cidadania") || i.tags?.includes("serviço")).slice(0,6)} onOpen={(id) => setView({ type: "story", storyId: id })} />
+
                   <Section id="recs" label="Notícias que você pode gostar" />
                   <CardGrid items={recommendations} onOpen={(id) => setView({ type: "story", storyId: id })} />
                 </section>
@@ -248,6 +208,9 @@
                     <p className="mt-2 text-neutral-700">{story.sub}</p>
                     <div className="mt-4 text-xs text-neutral-500">{story.source} • {story.date}</div>
                     <div className="prose max-w-none mt-6" dangerouslySetInnerHTML={{ __html: story.content }} />
+
+                    {/* Quiz & badges inside story (gamified learning) */}
+                    <QuizBlock story={story} onBadge={(badge) => pushBadge(badge)} />
                   </div>
                 </div>
               </article>
@@ -256,7 +219,10 @@
             <footer className="border-t border-neutral-200 mt-16">
               <div className="max-w-7xl mx-auto px-4 py-10 text-sm text-neutral-600 flex items-center justify-between gap-4">
                 <div>NEXUS • Feito para você (Rio • Flamengo • Famosos) — Interface clara com IA.</div>
-                <button onClick={() => setShowPrefs(true)} className="px-4 py-2 rounded-lg border border-neutral-300 hover:border-neutral-500">Editar perfil</button>
+                <div className="flex items-center gap-3">
+                  <StreakPill streak={streak} />
+                  <button onClick={() => setShowPrefs(true)} className="px-4 py-2 rounded-lg border border-neutral-300 hover:border-neutral-500">Editar perfil</button>
+                </div>
               </div>
             </footer>
 
@@ -267,10 +233,22 @@
                 onSave={(p) => { setPrefs(p); setShowPrefs(false); }}
               />
             )}
+
+            {/* Story Mode overlay (vertical swipes, 10–30s shorts) */}
+            {storyModeOpen && (
+              <StoryMode
+                items={toShorts(items)}
+                onClose={closeStoryMode}
+                onOpenFull={(id) => { setView({ type: "story", storyId: id }); closeStoryMode(); }}
+              />
+            )}
           </div>
         );
       }
 
+      /********************
+       * UTIL & STATE HELPERS
+       ********************/
       function formatNow() {
         try {
           return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -278,8 +256,266 @@
           return new Date().toLocaleString("pt-BR");
         }
       }
+      function isoToday() { return new Date().toISOString().slice(0,10); }
 
-      function Hero({ onExplore, featured = [] }) {
+      function seedData() {
+        const today = new Date();
+        const fmt = (d) => d.toISOString().slice(0, 10);
+        const flamengo = [
+          {
+            id: "fla-1",
+            category: "Flamengo",
+            title: "Copa do Brasil: Flamengo cai nos pênaltis para o Atlético-MG no Maracanã",
+            sub: "Mengão eliminado em disputa dramática; Everson decide a série nos penais.",
+            image: "https://lncimg.lance.com.br/cdn-cgi/image/width=950,quality=75,fit=pad,format=webp/uploads/2025/08/Hulk-em-Atletico-MG-x-Flamengo-aspect-ratio-512-320.jpg",
+            date: fmt(new Date()),
+            source: "NEXUS Esportes",
+            content: `<p>Após empate no agregado, o Flamengo foi eliminado pelo Atlético-MG nos pênaltis no Maracanã. O resultado redireciona o foco para Brasileirão e Libertadores.</p>`,
+            tags: ["flamengo", "maracanã", "rio de janeiro", "sudeste", "futebol"],
+          },
+          {
+            id: "fla-2",
+            category: "Flamengo",
+            title: "Próximo desafio: Mirassol no Brasileirão — teste para reagir",
+            sub: "Partida do fim de semana é vista como chave para retomar confiança.",
+            image: "https://gazetadourubu.com/storage/media-items/images/2025/08/flamengo-x-mirassol_20250808081334.webp",
+            date: fmt(new Date(today.getTime() - 86400000)),
+            source: "NEXUS Esportes",
+            content: `<p>O confronto surge como chance imediata de virar a página. A Nação deve lotar o Maraca.</p>`,
+            tags: ["flamengo", "brasileirão", "maracanã", "rio de janeiro", "futebol"],
+          },
+          {
+            id: "fla-3",
+            category: "Futebol Europeu",
+            title: "Estêvão marca em sua estreia pelo Chelsea; veja o gol",
+            sub: "Ex-palmeirense pegou rebote de Cole Palmer e empurrou para o gol do Bayer Leverkusen",
+            image: "https://s2-home-globo.glbimg.com/fJyplVoMQo5xTAet08NydtI-cdk=/419x131:4182x2247/fit-in/1030x580/middle/smart/filters:strip_icc():strip_exif()/i.s3.glbimg.com/v1/AUTH_bc8228b6673f488aa253bbcb03c80ec5/internal_photos/bs/2025/Z/m/5tale8QYW2Y2QKmYYFmg/2025-08-08t182020z-1227866563-up1el881exu9m-rtrmadp-3-soccer-friendly-che-lev.jpg",
+            date: fmt(new Date(today.getTime() - 86400000)),
+            source: "NEXUS Esportes",
+            content: `<p>Estêvão estreou da melhor maneira possível com a camisa do Chelsea. Nesta sexta-feira, em amistoso realizado em Stamford Bridge, ele abriu o placar no duelo com o Bayer Leverkusen.</p>`,
+            tags: ["flamengo", "brasileirão", "maracanã", "rio de janeiro", "futebol"],
+          },
+        ];
+        const celebs = [
+          {
+            id: "pop-1",
+            category: "Famosos & Pop",
+            title: "Anitta lança parceria surpresa e domina os charts",
+            sub: "Clipe com estética futurista e neon trenda nas redes.",
+            image: "https://caras.com.br/media/_versions/2025/06/anitta_0ah3r677_widelg.jpg",
+            date: fmt(new Date(today.getTime() - 86400000)),
+            source: "NEXUS Entretenimento",
+            content: `<p>Single surpresa com visual high-tech e refrão pegajoso. Milhões de views em horas.</p>`,
+            tags: ["anitta", "pop", "brasil", "entretenimento", "musica", "celebridades"],
+          },
+          {
+            id: "pop-2",
+            category: "Famosos & Pop",
+            title: "Neymar volta aos holofotes com evento beneficente",
+            sub: "Artistas e atletas se reúnem; renda para projetos infantis.",
+            image: "https://lncimg.lance.com.br/cdn-cgi/image/width=950,quality=75,fit=pad,format=webp/uploads/2025/08/AGIF2508042020159-1-scaled-aspect-ratio-512-320.jpg",
+            date: fmt(new Date(today.getTime() - 2 * 86400000)),
+            source: "NEXUS Entretenimento",
+            content: `<p>Evento marca presença massiva de celebridades e reacende debate sobre Seleção.</p>`,
+            tags: ["neymar", "celebridades", "beneficente", "brasil", "futebol"],
+          },
+        ];
+        const rioVida = [
+          {
+            id: "rio-1",
+            category: "Rio em Alta",
+            title: "Festival ocupa a Marina da Glória com arte, gastronomia e beats",
+            sub: "Line-up mescla funk, pop e eletrônica; experiências imersivas instagramáveis.",
+            image: "https://vejario.abril.com.br/wp-content/uploads/2023/04/QUEREMOS22_@bleia_drone_12.jpg?quality=70&strip=info&resize=1080,565&crop=1",
+            date: fmt(new Date()),
+            source: "NEXUS Cultura",
+            content: `<p>Curadoria mistura sons do Rio com tendências globais e ativações para famílias.</p>`,
+            tags: ["rio de janeiro", "marina da glória", "glória", "zona sul", "festival"],
+          },
+          {
+            id: "rio-2",
+            category: "Rio em Alta",
+            title: "Trilhas reabertas no Parque Nacional da Tijuca com nova sinalização",
+            sub: "Segurança reforçada e vistas clássicas — ótima pedida pro fim de semana.",
+            image: "https://www.cnnbrasil.com.br/wp-content/uploads/sites/12/2021/06/45450_1BFF1F1CC27B8D50.jpg?w=876&h=484&crop=1",
+            date: fmt(new Date(today.getTime() - 86400000)),
+            source: "NEXUS Cidade",
+            content: `<p>Totens informativos, pontos de descanso e acesso gratuito nas trilhas mais procuradas.</p>`,
+            tags: ["tijuca", "zona norte", "parque nacional", "rio de janeiro", "trilha"],
+          },
+        ];
+        const civico = [
+          {
+            id: "civ-1",
+            category: "Cidadania & Economia",
+            title: "Programas sociais ampliam atendimento a famílias no estado do Rio",
+            sub: "Inscrições abertas para benefícios e capacitações; veja quem tem direito.",
+            image: "https://rondonia.ro.gov.br/wp-content/uploads/2022/06/rondonia-cidada-cidade-do-lobo-thaissa-brandao-2-870x580.jpeg",
+            date: fmt(new Date()),
+            source: "NEXUS Serviço",
+            content: `<p>Novas vagas em cursos de qualificação e ampliação de benefício social. Procure o CRAS do bairro.</p>`,
+            tags: ["assistência social", "rio de janeiro", "serviço", "cidadania"],
+          },
+        ];
+        return { flamengo, celebs, rioVida, civico };
+      }
+
+      function loadPrefs() {
+        try {
+          const raw = localStorage.getItem("nexus-prefs");
+          if (raw) return JSON.parse(raw);
+        } catch {}
+        return {
+          interests: { flamengo: true, famosos: true, cidade: true, cidadania: true, policial: false, educacao: false, musicaPop: true },
+          neighborhood: "Rio de Janeiro, RJ",
+        };
+      }
+      function savePrefs(p) { try { localStorage.setItem("nexus-prefs", JSON.stringify(p)); } catch {}
+      }
+      function initStreak() {
+        const today = new Date().toDateString();
+        const last = localStorage.getItem("nexus-last-open");
+        let s = Number(localStorage.getItem("nexus-streak") || 0);
+        if (!last) { s = 1; }
+        else {
+          const lastDate = new Date(last);
+          const diff = Math.round((new Date(today) - new Date(lastDate.toDateString())) / (1000*60*60*24));
+          if (diff === 1) s += 1; else if (diff > 1) s = 1; // reset if gap > 1 day
+        }
+        localStorage.setItem("nexus-streak", s);
+        localStorage.setItem("nexus-last-open", today);
+        return s;
+      }
+
+      function labelFor(k) {
+        const map = {
+          flamengo: "Flamengo",
+          famosos: "Famosos",
+          cidade: "Eventos da cidade",
+          cidadania: "Cidadania & serviço",
+          policial: "Casos policiais",
+          educacao: "Educação",
+          musicaPop: "Música pop",
+        };
+        return map[k] || k;
+      }
+
+      function norm(s) {
+        return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      }
+
+      function filterByQuery(it, q) {
+        const t = norm(q.trim());
+        if (!t) return true;
+        const hay = [it.title, it.sub, ...(it.tags || [])].map(norm).join(" ");
+        return hay.includes(t);
+      }
+
+      function filterByLocation(it, loc) {
+        const nloc = norm(loc);
+        if (!nloc || nloc === norm("Rio de Janeiro, RJ")) return true;
+        const tags = (it.tags || []).map(norm).join(" ");
+        return nloc.split(/[\,\|\-]/).some(k => k.trim() && tags.includes(k.trim()));
+      }
+
+      function filterByPrefs(it, prefs) {
+        const t = (it.tags || []).map(norm);
+        const interests = prefs.interests;
+        const tests = [
+          ["flamengo", ["flamengo","futebol"]],
+          ["famosos", ["celebridades","famosos","anitta","neymar","musica"]],
+          ["cidade", ["rio de janeiro","festival","evento","trilha"]],
+          ["cidadania", ["cidadania","serviço","assistência social"]],
+          ["policial", ["polícia","caso policial","crime"]],
+          ["educacao", ["educação","escola","política educacional"]],
+          ["musicaPop", ["musica","pop","anitta"]],
+        ];
+        for (const [flag, keys] of tests) {
+          if (interests[flag]) {
+            if (keys.some(k => t.includes(norm(k)))) return true;
+          }
+        }
+        return ["rio de janeiro","serviço"].some(k => t.includes(norm(k)));
+      }
+
+      function getRecommendations(all, prefs, loc, take) {
+        const pool = all.filter(it => filterByLocation(it, loc) && filterByPrefs(it, prefs));
+        const nloc = norm(loc);
+        const scored = pool.map(it => {
+          const tags = (it.tags || []).map(norm);
+          let score = 0;
+          if (nloc && tags.some(t => nloc.includes(t))) score += 2;
+          const interestWords = ["flamengo","futebol","celebridades","anitta","neymar","festival","trilha","cidadania","serviço","polícia","educação","musica"];
+          score += tags.filter(t => interestWords.includes(t)).length;
+          return { it, score };
+        }).sort((a,b)=> b.score - a.score);
+        return scored.slice(0, take).map(s => s.it);
+      }
+
+      function toShorts(items) {
+        // map items to short-form objects (10–30s clips)
+        return items.slice(0,15).map((it, idx) => ({
+          id: it.id,
+          title: it.title,
+          sub: it.sub,
+          image: it.image,
+          duration: 10 + (idx % 3) * 8, // 10 / 18 / 26s
+          category: it.category,
+          source: it.source,
+        }));
+      }
+
+      /********************
+       * UI PIECES
+       ********************/
+      function BackgroundFX() {
+        return (
+          <div aria-hidden className="pointer-events-none select-none">
+            <div className="absolute inset-0 [background:radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.05)_1px,transparent_0)] [background-size:24px_24px]" />
+            <div className="absolute inset-x-0 -top-10 h-40 blur-2xl bg-gradient-to-r from-orange-300/40 via-transparent to-red-300/40" />
+          </div>
+        );
+      }
+
+      function ModeSwitch({ mode, setMode }) {
+        return (
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`px-2 py-1 rounded-lg border ${mode==='quick'?'bg-orange-50 border-orange-300 text-orange-700':'border-neutral-300 text-neutral-600'}`}>Quick</span>
+            <button
+              className="relative inline-flex items-center w-14 h-7 rounded-full bg-neutral-200"
+              onClick={() => setMode(m => m==='quick'?'deep':'quick')}
+              aria-label="Alternar ritmo do feed"
+            >
+              <span className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition ${mode==='deep'?'translate-x-7':''}`}></span>
+            </button>
+            <span className={`px-2 py-1 rounded-lg border ${mode==='deep'?'bg-emerald-50 border-emerald-300 text-emerald-700':'border-neutral-300 text-neutral-600'}`}>Deep</span>
+          </div>
+        );
+      }
+
+      function StreakPill({ streak }) {
+        const tier = streak >= 7 ? "🔥" : streak >= 3 ? "✨" : "🌱";
+        return (
+          <div className="px-2.5 py-1 rounded-full border border-neutral-300 bg-white text-xs flex items-center gap-1">
+            <span>{tier}</span>
+            <span><strong>{streak}</strong> dias informado</span>
+          </div>
+        );
+      }
+
+      function Toast({ text, onClose, onClick }) {
+        useEffect(() => {
+          const t = setTimeout(onClose, 4000);
+          return () => clearTimeout(t);
+        }, [onClose]);
+        return (
+          <button onClick={onClick} className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-black text-white text-sm shadow-lg">
+            {text}
+          </button>
+        );
+      }
+
+      function Hero({ onExplore, featured = [], onStoryMode }) {
         return (
           <section className="relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
@@ -300,7 +536,10 @@
                     <button onClick={onExplore} className="px-5 py-3 rounded-xl font-semibold bg-gradient-to-r from-red-500 to-orange-400 text-white hover:opacity-90 shadow-lg">
                       Ver o feed agora
                     </button>
-                    <a href="#fla" className="px-5 py-3 rounded-xl font-semibold border border-neutral-300 hover:border-neutral-500">Só Flamengo</a>
+                    <button onClick={onStoryMode} className="px-5 py-3 rounded-xl font-semibold border border-neutral-300 hover:border-neutral-500 flex items-center gap-2">
+                      <span>Story Mode</span>
+                      <svg className="w-4 h-4 swipe-hint" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
                   </div>
                   <div className="mt-6 text-sm text-neutral-500 flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -361,15 +600,6 @@
         );
       }
 
-      function BackgroundFX() {
-        return (
-          <div aria-hidden className="pointer-events-none select-none">
-            <div className="absolute inset-0 [background:radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.05)_1px,transparent_0)] [background-size:24px_24px]" />
-            <div className="absolute inset-x-0 -top-10 h-40 blur-2xl bg-gradient-to-r from-orange-300/40 via-transparent to-red-300/40" />
-          </div>
-        );
-      }
-
       function Toolbar({ onSearch, onLocation, onSearchImmediate, initialQuery, initialLocation }) {
         const [q, setQ] = useState(initialQuery || "");
         const [loc, setLoc] = useState(initialLocation || "Rio de Janeiro, RJ");
@@ -387,7 +617,7 @@
           onLocation(loc);
           onSearch(q);
           onSearchImmediate(q, loc);
-          setTimeout(() => setBusy(false), 1000);
+          setTimeout(() => setBusy(false), 800);
         }
         return (
           <div className="rounded-2xl border border-neutral-200 bg-white p-3 md:p-4 shadow-sm">
@@ -426,7 +656,7 @@
 
       function LocationSelector({ value, onChange, presets }) {
         const [open, setOpen] = useState(false);
-        const filtered = presets.filter(p => p.toLowerCase().includes(value.toLowerCase())).slice(0,6);
+        const filtered = presets.filter(p => p.toLowerCase().includes((value||"").toLowerCase())).slice(0,6);
         return (
           <div className="relative flex-1">
             <input
@@ -476,7 +706,7 @@
                 <fieldset className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.entries(local.interests).map(([k,v]) => (
                     <label key={k} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={v} onChange={(e)=> setLocal({ ...local, interests: { ...local.interests, [k]: e.target.checked } })} />
+                      <input type="checkbox" checked={!!v} onChange={(e)=> setLocal({ ...local, interests: { ...local.interests, [k]: e.target.checked } })} />
                       <span>{labelFor(k)}</span>
                     </label>
                   ))}
@@ -484,80 +714,204 @@
               </div>
               <div className="p-5 border-t border-neutral-200 flex items-center justify-end gap-2">
                 <button onClick={onClose} className="px-4 py-2 rounded-lg border border-neutral-300">Cancelar</button>
-                <button onClick={()=> onSave(local)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to orange-400 text-white">Salvar</button>
+                <button onClick={()=> onSave(local)} className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-400 text-white">Salvar</button>
               </div>
             </div>
           </div>
         );
       }
 
-      function labelFor(k) {
-        const map = {
-          flamengo: "Flamengo",
-          famosos: "Famosos",
-          cidade: "Eventos da cidade",
-          cidadania: "Cidadania & serviço",
-          policial: "Casos policiais",
-          educacao: "Educação",
-          musicaPop: "Música pop",
-        };
-        return map[k] || k;
+      function LiveMix({ items, onOpen, mode }) {
+        // Quick mode: compact cards; Deep: timeline with context
+        if (mode === 'quick') {
+          return (
+            <div className="mb-8">
+              <div className="flex gap-3 overflow-x-auto pb-3 snap-x">
+                {items.slice(0, 12).map(it => (
+                  <button key={it.id} onClick={() => onOpen(it.id)} className="snap-start min-w-[260px] text-left">
+                    <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow hover:bg-orange-50">
+                      <img src={it.image} alt={it.title} className="h-40 w-full object-cover" />
+                      <div className="p-3">
+                        <div className="text-[10px] uppercase tracking-widest text-red-600/90">{it.category}</div>
+                        <div className="text-sm font-semibold line-clamp-2">{it.title}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        // Deep
+        return (
+          <div className="mb-8">
+            <ol className="relative border-s border-neutral-200">
+              {items.slice(0, 8).map(it => (
+                <li key={it.id} className="ms-6 py-3">
+                  <span className="absolute -start-1.5 mt-3 h-3 w-3 rounded-full bg-orange-400 border border-white"></span>
+                  <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+                    <img src={it.image} alt="" className="w-full h-44 object-cover" />
+                    <div className="p-4">
+                      <div className="text-[10px] uppercase tracking-widest text-red-600/90">{it.category} • {it.date}</div>
+                      <h3 className="font-semibold mt-1">{it.title}</h3>
+                      <p className="text-sm text-neutral-700 mt-1">{it.sub}</p>
+                      <div className="flex items-center justify-between mt-3">
+                        <div className="text-xs text-neutral-500">Fonte: {it.source}</div>
+                        <button onClick={() => onOpen(it.id)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-300 hover:border-neutral-500">Abrir</button>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
       }
 
-      function norm(s) {
-        return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-      }
-
-      function filterByQuery(it, q) {
-        const t = norm(q.trim());
-        if (!t) return true;
-        const hay = [it.title, it.sub, ...(it.tags || [])].map(norm).join(" ");
-        return hay.includes(t);
-      }
-
-      function filterByLocation(it, loc) {
-        const nloc = norm(loc);
-        if (!nloc || nloc === norm("Rio de Janeiro, RJ")) return true;
-        const tags = (it.tags || []).map(norm).join(" ");
-        return nloc.split(/[\,\|\-]/).some(k => k.trim() && tags.includes(k.trim()));
-      }
-
-      function filterByPrefs(it, prefs) {
-        const t = (it.tags || []).map(norm);
-        const interests = prefs.interests;
-        const tests = [
-          ["flamengo", ["flamengo","futebol"]],
-          ["famosos", ["celebridades","famosos","anitta","neymar","musica"]],
-          ["cidade", ["rio de janeiro","festival","evento","trilha"]],
-          ["cidadania", ["cidadania","serviço","assistência social"]],
-          ["policial", ["polícia","caso policial","crime"]],
-          ["educacao", ["educação","escola","política educacional"]],
-          ["musicaPop", ["musica","pop","anitta"]],
-        ];
-        for (const [flag, keys] of tests) {
-          if (interests[flag]) {
-            if (keys.some(k => t.includes(norm(k)))) return true;
+      function QuizBlock({ story, onBadge }) {
+        const [answered, setAnswered] = useState(null);
+        const q = useMemo(() => makeQuiz(story), [story]);
+        function select(opt) {
+          if (answered) return;
+          const ok = opt.key === q.correct;
+          setAnswered({ key: opt.key, ok });
+          if (ok) {
+            onBadge?.("Leu & acertou");
           }
         }
-        return ["rio de janeiro","serviço"].some(k => t.includes(norm(k)));
+        return (
+          <div className="mt-8 p-4 rounded-2xl border border-neutral-200 bg-neutral-50">
+            <div className="text-sm text-neutral-700 mb-2">Quiz relâmpago</div>
+            <div className="font-medium">{q.title}</div>
+            <div className="mt-3 grid sm:grid-cols-2 gap-2">
+              {q.options.map(opt => (
+                <button key={opt.key} onClick={() => select(opt)}
+                  className={`px-3 py-2 rounded-lg border text-left ${answered?.key===opt.key ? (answered.ok? 'border-emerald-400 bg-emerald-50' : 'border-red-300 bg-red-50') : 'border-neutral-300 hover:border-neutral-500 bg-white'}`}
+                >{opt.text}</button>
+              ))}
+            </div>
+            {answered && (
+              <div className={`mt-3 text-sm ${answered.ok ? 'text-emerald-700' : 'text-red-700'}`}>
+                {answered.ok ? 'Boa! +1 ponto de conhecimento.' : 'Quase! Role para reler e tente de novo amanhã.'}
+              </div>
+            )}
+          </div>
+        );
       }
 
-      function getRecommendations(all, prefs, loc, take) {
-        const pool = all.filter(it => filterByLocation(it, loc) && filterByPrefs(it, prefs));
-        const nloc = norm(loc);
-        const scored = pool.map(it => {
-          const tags = (it.tags || []).map(norm);
-          let score = 0;
-          if (nloc && tags.some(t => nloc.includes(t))) score += 2;
-          const interestWords = ["flamengo","futebol","celebridades","anitta","neymar","festival","trilha","cidadania","serviço","polícia","educação","musica"];
-          score += tags.filter(t => interestWords.includes(t)).length;
-          return { it, score };
-        }).sort((a,b)=> b.score - a.score);
-        return scored.slice(0, take).map(s => s.it);
+      function makeQuiz(story) {
+        // super-light quiz generator
+        const base = story.title;
+        const correct = 'a';
+        return {
+          title: `O que melhor resume esta matéria?`,
+          correct,
+          options: [
+            { key: 'a', text: base.slice(0, 80) + (base.length>80?'…':'') },
+            { key: 'b', text: 'Assunto completamente diferente' },
+            { key: 'c', text: 'Título genérico sobre política' },
+            { key: 'd', text: 'Esporte: resultado antigo de outro time' },
+          ]
+        };
       }
 
+      function StoryMode({ items, onClose, onOpenFull }) {
+        const [idx, setIdx] = useState(0);
+        const wrap = useRef(null);
+        useEffect(() => {
+          function onKey(e) {
+            if (e.key === 'Escape') onClose();
+            if (e.key === 'ArrowRight') setIdx(i => Math.min(i+1, items.length-1));
+            if (e.key === 'ArrowLeft') setIdx(i => Math.max(i-1, 0));
+          }
+          window.addEventListener('keydown', onKey);
+          return () => window.removeEventListener('keydown', onKey);
+        }, [onClose, items.length]);
+        // touch swipe
+        useEffect(() => {
+          const el = wrap.current; if (!el) return;
+          let sx = 0, dx = 0;
+          const start = (e) => { sx = e.touches?.[0]?.clientX || 0; };
+          const move = (e) => { dx = (e.touches?.[0]?.clientX || 0) - sx; };
+          const end = () => {
+            if (dx > 60) setIdx(i => Math.max(i-1, 0));
+            if (dx < -60) setIdx(i => Math.min(i+1, items.length-1));
+            sx = 0; dx = 0;
+          };
+          el.addEventListener('touchstart', start, { passive: true });
+          el.addEventListener('touchmove', move, { passive: true });
+          el.addEventListener('touchend', end, { passive: true });
+          return () => {
+            el.removeEventListener('touchstart', start);
+            el.removeEventListener('touchmove', move);
+            el.removeEventListener('touchend', end);
+          };
+        }, [items.length]);
+
+        const it = items[idx];
+        return (
+          <div ref={wrap} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm grid place-items-center p-4">
+            <div className="absolute top-4 right-4 flex items-center gap-2">
+              <button onClick={onClose} className="px-3 py-1.5 rounded-lg bg-white/90 border border-neutral-200">Fechar</button>
+            </div>
+            <div className="w-full max-w-sm aspect-[9/16] bg-black rounded-[28px] overflow-hidden shadow-2xl border border-white/10 relative">
+              {/* Progress bars */}
+              <div className="absolute top-2 left-2 right-2 flex gap-1">
+                {items.slice(0,12).map((_, i) => (
+                  <div key={i} className={`h-1 flex-1 rounded bg-white/30 overflow-hidden`}>
+                    <div className={`h-full ${i<idx?'w-full':'w-0'} bg-white transition-all`}></div>
+                  </div>
+                ))}
+              </div>
+              <img src={it.image} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white">
+                <div className="text-[10px] uppercase tracking-widest opacity-90">{it.category} • {it.source}</div>
+                <div className="font-semibold leading-tight">{it.title}</div>
+                <div className="text-xs opacity-90">{it.sub}</div>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-[10px] opacity-80">{it.duration}s</div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setIdx(i => Math.max(i-1, 0))} className="px-2 py-1 rounded bg-white/20">◀</button>
+                    <button onClick={() => setIdx(i => Math.min(i+1, items.length-1))} className="px-2 py-1 rounded bg-white/20">▶</button>
+                    <button onClick={() => onOpenFull(it.id)} className="px-2 py-1 rounded bg-white text-black text-xs">Ir à matéria</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function LiveMixSkeleton() {
+        return (
+          <div className="mb-8 animate-pulse">
+            <div className="flex gap-3 overflow-x-auto pb-3">
+              {Array.from({length:4}).map((_,i)=> (
+                <div key={i} className="min-w-[260px] h-52 rounded-2xl bg-neutral-200"></div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      /********************
+       * RENDER
+       ********************/
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<App />);
+
+      /********************
+       * BADGE HOOK (noop demo)
+       ********************/
+      function pushBadge(name) {
+        try {
+          const list = JSON.parse(localStorage.getItem('nexus-badges')||'[]');
+          if (!list.includes(name)) {
+            list.push(name);
+            localStorage.setItem('nexus-badges', JSON.stringify(list));
+          }
+        } catch {}
+      }
     </script>
   </body>
 </html>
